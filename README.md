@@ -1,84 +1,116 @@
-# 🌾 FarmChatBot: Farming Q&A Assistant with RAG and Evaluation
+# 🌾 FarmChatBot: A Multilingual RAG-based Agricultural Chatbot with Evaluation Pipeline
 
-FarmBot is an intelligent agricultural assistant that answers farming-related queries using a hybrid Retrieval-Augmented Generation (RAG) pipeline. It combines dynamic web-based context retrieval with a large static Q&A dataset, powered by a state-of-the-art LLM via Groq.
+## 📋 Overview
 
----
+FarmChatBot is a Retrieval-Augmented Generation (RAG) chatbot designed to provide accurate, trustworthy, and specific agricultural advice. It leverages large language models (LLMs) served via the Groq API and is evaluated using standard NLP metrics such as BLEU, ROUGE, Precision, Recall, F1-score, and Cosine Similarity.
 
-## 🧠 Key Features
-
-- 🔍 **Retrieval-Augmented Generation (RAG)**: Combines static QA knowledge base with real-time web scraping using `n8n` workflows.
-- 🌐 **Dynamic Context**: Scrapes top relevant farming articles using URLs from an `n8n` webhook.
-- 📚 **Q&A Embedding Retrieval**: Uses `ChromaDB` to store and retrieve over 170,000+ QA pairs.
-- 🤖 **Groq + LLaMA 4**: Uses Groq API to generate high-speed, context-aware answers.
-- ✅ **Evaluation Metrics**:
-  - BLEU Score
-  - ROUGE Score
-  - Cosine Similarity between answer and reference embeddings
-  - Precision, Recall, and F1 Score (based on keyword overlap)
-- 🌍 **Multilingual + Audio Support**: Seamless interaction for users in Hindi and other Indian languages via voice input/output.
-- 🔧 **Modular Pipeline**: Built using Jupyter notebooks for extensibility, analysis, and debugging.
+FarmBot supports **multilingual input and output**, enabling farmers and users to interact using **Hindi or English audio/text**, while maintaining high-quality retrieval and generation using English language models.
 
 ---
 
-## 📁 Project Structure
+## 🏗️ Architecture
 
-```
-📂 FarmBot/
-│
-├── farmBot_Final.ipynb             # Embedding creation and pipeline setup
-├── RAG_test(web+qa).ipynb          # Real-time RAG + Evaluation code
-├── evaluated_out_ref2.csv          # Evaluation output with various metrics
-├── questionsv4.csv                 # Main QA dataset
-└── README.md                       # This file
-```
+### 1. 🗂️ Knowledge Base Construction (QA + Web)
 
-## 📦 Dependencies
+- **QA Vector Store:** We embed and store ~174,000 question-answer pairs using `all-MiniLM-L6-v2` in ChromaDB (`qa_context`).
+- **Live Web Context via n8n:** Real-time data is fetched from trusted agricultural sources using **n8n workflow** → programmable Google Search → scraping content → embedding and storing in `web_context`.
+- **Trafilatura** is used for clean content extraction from noisy HTML.
 
-Install all required libraries:
+### 2. 🔁 RAG Retrieval Process
 
-```bash
-pip install pandas nltk rouge-score sentence-transformers chromadb groq scikit-learn tqdm trafilatura
-```
+- User's query is embedded and used to:
+  - Retrieve top-k similar passages from the static **QA knowledge base**
+  - Dynamically fetch real-time context from **live web scraping**
+- The top results from both are **combined** and truncated to fit model limits.
 
-## 🧠 How It Works
+### 3. 🤖 Groq LLM Generation
 
-### 1. **Training Phase**
-- Load ~1.78 lakh QA pairs from the `questionsv4.csv`.
-- Convert questions into embeddings using `all-MiniLM-L6-v2`.
-- Store them in a persistent `ChromaDB` collection `qa_context`.
+- The LLM is instructed to respond strictly using retrieved context only.
+- Model used: `meta-llama/llama-4-scout-17b-16e-instruct` (via Groq API).
 
-### 2. **Testing Phase**
-- For each new query:
-  - 🔍 Fetch dynamic web context via `n8n` webhook.
-  - 🧹 Clean HTML using `trafilatura`.
-  - 🧠 Convert scraped content into embeddings and store in `web_context`.
-  - 🎯 Retrieve top-2 contexts from both QA and Web.
-  - 🤖 Send combined context + query to Groq LLM for answer generation.
+---
 
-### 3. **Evaluation**
-- Evaluate answer vs reference using:
-  - BLEU (n-gram precision)
-  - ROUGE (recall-based)
-  - Cosine Similarity (semantic closeness)
-  - Precision/Recall/F1 based on manually selected or auto-extracted keywords.
+## 🌐 Multilingual Support
 
-## 📊 Sample Evaluation Output
+### Input:
+- 🎙️ Hindi audio → 📝 Hindi text (via speech-to-text)
+- 📝 Hindi text → 📝 English text (via translation)
 
-| Query                               | BLEU | ROUGE-L | Precision | Recall | F1   |
-|------------------------------------|------|---------|-----------|--------|------|
-| How to treat aphids in brinjal?    | 0.62 | 0.81    | 0.75      | 0.67   | 0.71 |
-| How to apply for Kisan Credit Card | 0.49 | 0.74    | 0.60      | 0.80   | 0.69 |
+### Core:
+- English query used for embedding, RAG retrieval, and Groq LLM answering.
 
-## 🔍 Planned Improvements
+### Output:
+- 📝 English text → 📝 Hindi translation
+- 📝 Hindi text → 🔈 Hindi audio (via text-to-speech)
 
-- ✅ Integrate automatic keyword extraction (e.g., using YAKE or spaCy).
-- ⏳ Reduce Groq token usage by compressing scraped content.
-- ⛅ Move to Dev Tier for better rate limits on Groq API.
-- 📈 Create a Streamlit interface for real-time interaction.
+This ensures a seamless experience for non-English speakers while preserving model quality through English-based reasoning.
 
-## 🤝 Acknowledgements
+---
 
-- [Groq](https://groq.com) for fast LLM API access.
-- [ChromaDB](https://www.trychroma.com/) for vector DB.
-- [n8n](https://n8n.io) for serverless scraping automation.
-- [DA-IICT](https://www.daiict.ac.in/) faculty for project guidance.
+## 📏 Evaluation Pipeline
+
+### Metrics Used:
+
+- **BLEU Score**
+- **ROUGE-1 & ROUGE-L**
+- **Precision, Recall, F1** (based on keyword extraction)
+- **Cosine Similarity** (between reference and generated answer embeddings)
+
+### Improvements Implemented:
+
+- ✅ Automatic keyword extraction (coming soon) from reference answers for dynamic precision/recall scoring.
+- ✅ Embedding similarity checks to validate closeness beyond lexical overlap.
+- ✅ GPT-style evaluation (LLM-generated scores) used optionally for subjective quality checks.
+
+---
+
+## 🔬 Vector Store Details
+
+ChromaDB is used to store two primary collections:
+
+- `qa_context`: Question–Answer data (preloaded)
+- `web_context`: Real-time context fetched using n8n & Google CSE
+
+Each document includes:
+- Cleaned passage content
+- Embeddings (`all-MiniLM-L6-v2`)
+- Metadata: URL, original query, etc.
+
+---
+
+## 📁 Notebooks
+
+- `farmBot_Final.ipynb`: Main chatbot pipeline using QA context.
+- `RAG_test(web+qa).ipynb`: Evaluation + dynamic web retrieval + full scoring.
+- `evaluated_out_ref2.csv`: Contains final scored outputs from evaluation pipeline.
+
+---
+
+## 🧪 How to Run
+
+1. Store QA dataset as embeddings in ChromaDB.
+2. Launch n8n webhook for real-time web scraping.
+3. Run chatbot pipeline with combined context retrieval (QA + Web).
+4. Evaluate responses using BLEU, ROUGE, F1, and cosine similarity.
+
+---
+
+## 💡 Future Work
+
+- 🧠 Memory-based chat history
+- 📲 Telegram/WhatsApp integration
+- 🧾 Doctor-consultation fallback if context confidence is low
+- 🌍 Support for more Indian languages beyond Hindi
+
+---
+
+## 🤝 Credits
+
+This project is inspired by the implementation of RAG in maternal care systems and leverages the following:
+- [ChromaDB](https://www.trychroma.com/)
+- [n8n](https://n8n.io/)
+- [Trafilatura](https://trafilatura.readthedocs.io/)
+- [Groq LLM](https://console.groq.com/)
+- [NLTK, Sklearn, HuggingFace](https://huggingface.co/)
+
+---
